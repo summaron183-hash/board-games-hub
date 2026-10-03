@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Board Games Hub</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --accent: #3b82f6;
+            --text-light: #f8fafc;
+            --text-muted: #94a3b8;
+            --p1-color: #ef4444;
+            --p2-color: #3b82f6;
+            --p3-color: #10b981;
+            --p4-color: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background: var(--bg-dark); color: var(--text-light); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+        /* Header */
+        header { width: 100%; max-width: 600px; background: var(--bg-card); padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; }
+        header h1 { font-size: 1.1rem; color: #60a5fa; font-weight: 800; }
+        .header-actions { display: flex; gap: 0.5rem; }
+        .btn { background: #334155; color: white; border: none; padding: 0.5rem 0.8rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: var(--accent); }
+        .btn:hover { opacity: 0.9; }
+
+        /* App Sections */
+        main { width: 100%; max-width: 600px; padding: 1rem; flex: 1; }
+        .view-section { display: none; flex-direction: column; gap: 1rem; }
+        .active-view { display: flex; }
+
+        /* Game Lobby Cards */
+        .card { background: var(--bg-card); border: 2px solid #334155; border-radius: 12px; padding: 1.2rem; cursor: pointer; transition: 0.2s; }
+        .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .card h2 { color: #93c5fd; font-size: 1.2rem; margin-bottom: 0.3rem; }
+        .card p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.4; }
+
+        /* Setup Form */
+        .setup-group { margin-bottom: 1rem; }
+        .setup-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+        select, input { width: 100%; padding: 0.6rem; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; }
+
+        /* Game Controls */
+        .control-panel { background: var(--bg-card); padding: 0.8rem 1rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; }
+        .turn-info { display: flex; flex-direction: column; }
+        .turn-title { font-weight: bold; font-size: 1rem; color: #60a5fa; }
+        .turn-sub { font-size: 0.75rem; color: var(--text-muted); }
+        .dice-container { display: flex; align-items: center; gap: 0.8rem; }
+        .dice-box { width: 48px; height: 48px; background: white; color: black; font-size: 1.8rem; font-weight: bold; border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+
+        /* Board Styling */
+        .board-container { width: 100%; aspect-ratio: 1/1; background: #e2e8f0; border-radius: 12px; display: grid; gap: 2px; padding: 4px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); overflow: hidden; }
+        .grid-100 { grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); }
+        .cell { background: #ffffff; border-radius: 3px; position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 2px; font-size: 0.65rem; font-weight: bold; color: #475569; user-select: none; }
+        .cell-start { background: #dcfce7 !important; border: 2px solid #22c55e; }
+        .cell-finish { background: #fee2e2 !important; border: 2px solid #ef4444; }
+        .cell-icon { font-size: 0.9rem; text-align: center; line-height: 1; }
+        .pawn-container { display: flex; flex-wrap: wrap; gap: 2px; position: absolute; bottom: 2px; right: 2px; }
+        .pawn { width: 10px; height: 10px; border-radius: 50%; border: 1px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+
+        /* Modal */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; padding: 1.5rem; justify-content: center; align-items: center; }
+        .modal-active { display: flex; }
+        .modal-body { background: var(--bg-card); max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; border-radius: 12px; padding: 1.5rem; border: 1px solid #334155; }
+        .modal-body h3 { color: #60a5fa; margin-bottom: 1rem; }
+        .modal-body p, .modal-body li { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🎮 Board Hub</h1>
+        <div class="header-actions">
+            <button class="btn" onclick="openRules()">📖 Rules</button>
+            <button class="btn" onclick="saveGame()">💾 Save</button>
+            <button class="btn btn-primary" onclick="showView('view-menu')">🏠 Menu</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- LOBBY MENU -->
+        <section id="view-menu" class="view-section active-view">
+            <div class="card" onclick="openSetup('traffic')">
+                <h2>🚥 Traffic Safety & Civic Board</h2>
+                <p>10x10 custom safety board game with traffic signals, gender restrooms, speed breakers, and hospital zones.</p>
+            </div>
+            <div class="card" onclick="openSetup('snakes')">
+                <h2>🐍 Snakes & Ladders</h2>
+                <p>Classic board game with options for 2 to 4 human players or AI bots.</p>
+            </div>
+            <div class="card" onclick="openSetup('ludo')">
+                <h2>🎲 Ludo King Classic</h2>
+                <p>Play Classic or Rapid Ludo modes with customizable bots and player names.</p>
+            </div>
+        </section>
+
+        <!-- SETUP SCREEN -->
+        <section id="view-setup" class="view-section">
+            <div class="card" style="cursor: default;">
+                <h2 id="setup-title">Game Configuration</h2>
+                <div class="setup-group">
+                    <label>Player Count</label>
+                    <select id="setup-players" onchange="renderPlayerInputs()">
+                        <option value="2">2 Players</option>
+                        <option value="3">3 Players</option>
+                        <option value="4">4 Players</option>
+                    </select>
+                </div>
+                <div id="player-config-container"></div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="launchGame()">Start Match</button>
+            </div>
+        </section>
+
+        <!-- GAMEPLAY SCREEN -->
+        <section id="view-game" class="view-section">
+            <div class="control-panel">
+                <div class="turn-info">
+                    <span class="turn-title" id="current-player-text">Player 1's Turn</span>
+                    <span class="turn-sub" id="game-status-text">Roll a 1 to enter the board!</span>
+                </div>
+                <div class="dice-container">
+                    <div class="dice-box" id="dice-value">🎲</div>
+                    <button class="btn btn-primary" id="roll-btn" onclick="handleRoll()">Roll</button>
+                </div>
+            </div>
+            <div class="board-container grid-100" id="board-grid"></div>
+        </section>
+    </main>
+
+    <!-- RULES MODAL -->
+    <div id="rules-modal" class="modal">
+        <div class="modal-body">
+            <h3 id="rules-header">Game Rules</h3>
+            <div id="rules-content"></div>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="closeRules()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Custom Tile Events Definition
+        const TRAFFIC_TILES = {
+            5: { name: "School Zone", icon: "🏫", desc: "Slow down! Skip 1 turn.", action: (p) => { p.skipTurns += 1; } },
+            13: { name: "Dustbin", icon: "🗑️", desc: "Litter disposed! Advance 4 tiles.", action: (p) => { p.pos = Math.min(100, p.pos + 4); } },
+            26: { name: "No Horn Zone", icon: "🔇", desc: "Quiet zone respected! Extra turn.", action: (p) => { p.extraTurn = true; } },
+            30: { name: "Bike Lane", icon: "🚴", desc: "Smooth ride! Move forward 6 tiles.", action: (p) => { p.pos = Math.min(100, p.pos + 6); } },
+            38: { name: "Women's Restroom", icon: "🚺", desc: "Male entered wrong restroom! Move back 10 tiles.", action: (p) => { if(p.gender === 'male' && p.pos === 38) p.pos = 28; } },
+            48: { name: "No Rickshaw", icon: "🚫", desc: "Rickshaws prohibited! Go back to tile 16.", action: (p) => { p.pos = 16; } },
+            55: { name: "Men's Restroom", icon: "🚹", desc: "Female entered wrong restroom! Move back 10 tiles.", action: (p) => { if(p.gender === 'female' && p.pos === 55) p.pos = 45; } },
+            64: { name: "Hospital Ahead", icon: "🏥", desc: "Quiet area! Skip 3 turns.", action: (p) => { p.skipTurns += 3; } },
+            76: { name: "Express Lane", icon: "⬆️", desc: "Straight route! Jump to tile 96.", action: (p) => { p.pos = 96; } },
+            88: { name: "Speed Bump", icon: "⚠️", desc: "Speed breaker! Back 2 tiles.", action: (p) => { p.pos = 86; } },
+            98: { name: "No Pedestrian Crossing", icon: "🚷", desc: "Illegal crossing accident! Go to Hospital (Tile 64) & skip 3 turns.", action: (p) => { p.pos = 64; p.skipTurns += 3; } }
+        };
+
+        let selectedGameType = 'traffic';
+        let players = [];
+        let activePlayerIndex = 0;
+        let isRolling = false;
+
+        function showView(viewId) {
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active-view'));
+            document.getElementById(viewId).classList.add('active-view');
+        }
+
+        function openSetup(gameType) {
+            selectedGameType = gameType;
+            document.getElementById('setup-title').innerText = `${gameType.toUpperCase()} Setup`;
+            renderPlayerInputs();
+            showView('view-setup');
+        }
+
+        function renderPlayerInputs() {
+            const count = parseInt(document.getElementById('setup-players').value);
+            const container = document.getElementById('player-config-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                container.innerHTML += `
+                    <div style="background:#0f172a; padding:0.8rem; margin-top:0.5rem; border-radius:8px;">
+                        <label>Player ${i+1} Name</label>
+                        <input type="text" id="p-name-${i}" value="Player ${i+1}">
+                        <div style="display:flex; gap:0.5rem; margin-top:0.4rem;">
+                            <select id="p-type-${i}">
+                                <option value="human">Human</option>
+                                <option value="bot" ${i > 0 ? 'selected' : ''}>Bot (AI)</option>
+                            </select>
+                            <select id="p-gender-${i}">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function launchGame() {
+            const count = parseInt(document.getElementById('setup-players').value);
+            players = [];
+            const colors = ['var(--p1-color)', 'var(--p2-color)', 'var(--p3-color)', 'var(--p4-color)'];
+
+            for (let i = 0; i < count; i++) {
+                players.push({
+                    id: i + 1,
+                    name: document.getElementById(`p-name-${i}`).value || `Player ${i+1}`,
+                    isBot: document.getElementById(`p-type-${i}`).value === 'bot',
+                    gender: document.getElementById(`p-gender-${i}`).value,
+                    color: colors[i],
+                    pos: 0,
+                    isLocked: true,
+                    skipTurns: 0,
+                    extraTurn: false
+                });
+            }
+
+            activePlayerIndex = 0;
+            renderBoard();
+            updateTurnUI();
+            showView('view-game');
+
+            if (players[activePlayerIndex].isBot) {
+                setTimeout(handleBotTurn, 1000);
+            }
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('board-grid');
+            board.innerHTML = '';
+
+            for (let row = 9; row >= 0; row--) {
+                for (let col = 0; col < 10; col++) {
+                    let tileNum = (row % 2 === 1) ? (row * 10 + (10 - col)) : (row * 10 + col + 1);
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (tileNum === 1) cell.classList.add('cell-start');
+                    if (tileNum === 100) cell.classList.add('cell-finish');
+
+                    let icon = '';
+                    if (selectedGameType === 'traffic' && TRAFFIC_TILES[tileNum]) {
+                        icon = TRAFFIC_TILES[tileNum].icon;
+                    }
+
+                    cell.innerHTML = `<span>${tileNum}</span><div class="cell-icon">${icon}</div><div class="pawn-container" id="pawns-${tileNum}"></div>`;
+                    board.appendChild(cell);
+                }
+            }
+            updatePawnsOnBoard();
+        }
+
+        function updatePawnsOnBoard() {
+            document.querySelectorAll('.pawn-container').forEach(c => c.innerHTML = '');
+            players.forEach(p => {
+                if (p.pos > 0) {
+                    const container = document.getElementById(`pawns-${p.pos}`);
+                    if (container) {
+                        const pawn = document.createElement('div');
+                        pawn.className = 'pawn';
+                        pawn.style.background = p.color;
+                        container.appendChild(pawn);
+                    }
+                }
+            });
+        }
+
+        function handleRoll() {
+            if (isRolling) return;
+            const player = players[activePlayerIndex];
+
+            if (player.skipTurns > 0) {
+                player.skipTurns--;
+                document.getElementById('game-status-text').innerText = `${player.name} skips turn! (${player.skipTurns} left)`;
+                nextTurn();
+                return;
+            }
+
+            isRolling = true;
+            const diceVal = Math.floor(Math.random() * 6) + 1;
+            document.getElementById('dice-value').innerText = diceVal;
+
+            if (player.isLocked) {
+                if (diceVal === 1) {
+                    player.isLocked = false;
+                    player.pos = 1;
+                    document.getElementById('game-status-text').innerText = `${player.name} rolled a 1 and entered Tile 1!`;
+                } else {
+                    document.getElementById('game-status-text').innerText = `${player.name} rolled ${diceVal}. Needs 1 to start!`;
+                }
+            } else {
+                if (player.pos + diceVal <= 100) {
+                    player.pos += diceVal;
+                    document.getElementById('game-status-text').innerText = `${player.name} moved to tile ${player.pos}!`;
+
+                    if (selectedGameType === 'traffic' && TRAFFIC_TILES[player.pos]) {
+                        const event = TRAFFIC_TILES[player.pos];
+                        event.action(player);
+                        document.getElementById('game-status-text').innerText = `${event.icon} ${event.name}: ${event.desc}`;
+                    }
+                }
+            }
+
+            updatePawnsOnBoard();
+
+            if (player.pos === 100) {
+                alert(`🎉 ${player.name} Wins the Game!`);
+                showView('view-menu');
+                isRolling = false;
+                return;
+            }
+
+            if (player.extraTurn) {
+                player.extraTurn = false;
+                isRolling = false;
+                if (player.isBot) setTimeout(handleBotTurn, 1000);
+            } else {
+                setTimeout(() => {
+                    isRolling = false;
+                    nextTurn();
+                }, 1000);
+            }
+        }
+
+        function nextTurn() {
+            activePlayerIndex = (activePlayerIndex + 1) % players.length;
+            updateTurnUI();
+            if (players[activePlayerIndex].isBot) {
+                setTimeout(handleBotTurn, 1000);
+            }
+        }
+
+        function handleBotTurn() {
+            if (players[activePlayerIndex].isBot) handleRoll();
+        }
+
+        function updateTurnUI() {
+            const p = players[activePlayerIndex];
+            document.getElementById('current-player-text').innerText = `${p.name}'s Turn`;
+            document.getElementById('current-player-text').style.color = p.color;
+            document.getElementById('roll-btn').disabled = p.isBot;
+        }
+
+        function openRules() {
+            const modal = document.getElementById('rules-modal');
+            const content = document.getElementById('rules-content');
+            if (selectedGameType === 'traffic') {
+                content.innerHTML = `
+                    <ul>
+                        <li><b>Start Rule:</b> Must roll a 1 to enter Tile 1.</li>
+                        <li><b>Winning:</b> First player to reach Tile 100 wins.</li>
+                        <li><b>Special Traffic Signs:</b>
+                            <ul>
+                                <li><b>Tile 5 (School):</b> Skip 1 turn.</li>
+                                <li><b>Tile 13 (Dustbin):</b> Advance 4 tiles.</li>
+                                <li><b>Tile 26 (No Horn):</b> Extra turn.</li>
+                                <li><b>Tile 30 (Bike Lane):</b> Move forward 6 tiles.</li>
+                                <li><b>Tile 38 (Women's Restroom):</b> Male penalty back 10 tiles.</li>
+                                <li><b>Tile 48 (No Rickshaw):</b> Back to Tile 16.</li>
+                                <li><b>Tile 55 (Men's Restroom):</b> Female penalty back 10 tiles.</li>
+                                <li><b>Tile 64 (Hospital):</b> Skip 3 turns.</li>
+                                <li><b>Tile 76 (Express Lane):</b> Jump to Tile 96.</li>
+                                <li><b>Tile 88 (Speed Bump):</b> Back 2 tiles.</li>
+                                <li><b>Tile 98 (No Pedestrian Crossing):</b> Go to Hospital (Tile 64) + skip 3 turns.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                `;
+            } else {
+                content.innerHTML = `<p>Roll a 1 to unlock your piece, then move according to your dice rolls to reach tile 100!</p>`;
+            }
+            modal.classList.add('modal-active');
+        }
+
+        function closeRules() {
+            document.getElementById('rules-modal').classList.remove('modal-active');
+        }
+
+        function saveGame() {
+            localStorage.setItem('hub_saved_game', JSON.stringify({
+                type: selectedGameType,
+                players: players,
+                activePlayerIndex: activePlayerIndex
+            }));
+            alert('Game saved successfully!');
+        }
+    </script>
+</body>
+  </html>
